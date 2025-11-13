@@ -182,6 +182,7 @@
 
     <!-- ИТОГИ -->
     <div class="summary">
+      <div id="summary" class="summary">
       <div class="summary-row">
         <span class="label">Процент покрытия расходов (клиент / перевозчик):</span>
         <span class="val" id="coverageValue">0%</span>
@@ -254,9 +255,23 @@
     baseCarrierValueEl.textContent = fmtMoney(baseCarrier);
     baseClientValueEl.textContent  = fmtMoney(baseClient);
 
-    [carrierSlider, clientSlider].forEach(el => {
-      el.addEventListener("input", recalc);
-    });
+   [carrierSlider, clientSlider].forEach(el => {
+  el.addEventListener("input", recalc);
+});
+
+// 🔽 ВСТАВКА
+[carrierSlider, clientSlider].forEach(el => {
+  el.addEventListener("change", () => {
+    const summary = document.getElementById("summary");
+    if (summary) {
+      summary.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+});
+// 🔼 ВСТАВКА
+
+recalc();
+
 
     recalc();
   </script>
