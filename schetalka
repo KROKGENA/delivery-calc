@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Калькулятор доставки: перевозчик / клиент</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+    }
+
+    .app {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 12px;
+      text-align: center;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    @media (min-width: 700px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card {
+      background: #fafafa;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .label-small {
+      font-size: 12px;
+      color: #777;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .value {
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .muted {
+      font-size: 12px;
+      color: #777;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .row span.small {
+      font-size: 12px;
+      color: #555;
+      white-space: nowrap;
+    }
+
+    .summary {
+      margin-top: 16px;
+      background: #f0f7ff;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .summary-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .summary-row .label {
+      color: #555;
+    }
+
+    .summary-row .val {
+      font-weight: 600;
+    }
+
+    .positive {
+      color: #008000;
+    }
+
+    .negative {
+      color: #c00000;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Калькулятор доставки (перевозчик / клиент)</h1>
+
+    <p class="muted" style="margin-bottom:16px;">
+      Фактические суммы за период зафиксированы. Меняйте ползунки, чтобы посмотреть,
+      как изменятся расходы на перевозчика и оплата клиента.
+    </p>
+
+    <!-- БАЗОВЫЕ ЗНАЧЕНИЯ (ТОЛЬКО ПРОСМОТР) -->
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-title">Мы заплатили перевозчикам с мая по октябрь 2025 г. (факт)</div>
+        <span class="label-small">Сумма, ₽</span>
+        <div class="value" id="baseCarrierValue"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Клиент оплатил нам за доставку с мая по октябрь 2025 г. (факт)</div>
+        <span class="label-small">Сумма, ₽</span>
+        <div class="value" id="baseClientValue"></div>
+      </div>
+    </div>
+
+    <!-- ПОЛЗУНКИ -->
+    <div class="grid grid-2" style="margin-top:16px;">
+      <!-- Перевозчик -->
+      <div class="card">
+        <div class="card-title">Изменение тарифа перевозчика</div>
+
+        <span class="label-small">Рост тарифа, %</span>
+        <div class="row">
+          <input id="carrierSlider" type="range" min="-50" max="100" value="0" />
+          <span class="small" id="carrierPercentLabel">0%</span>
+        </div>
+
+        <div style="margin-top:8px;">
+          <div class="muted">Новая сумма, которую мы заплатим перевозчику:</div>
+          <div class="value" id="newCarrierValue">0 ₽</div>
+        </div>
+      </div>
+
+      <!-- Клиент -->
+      <div class="card">
+        <div class="card-title">Изменение тарифа для клиента</div>
+
+        <span class="label-small">Рост цены доставки клиенту, %</span>
+        <div class="row">
+          <input id="clientSlider" type="range" min="-50" max="100" value="0" />
+          <span class="small" id="clientPercentLabel">0%</span>
+        </div>
+
+        <div style="margin-top:8px;">
+          <div class="muted">Новая сумма, которую клиент заплатит нам:</div>
+          <div class="value" id="newClientValue">0 ₽</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ИТОГИ -->
+    <div class="summary">
+      <div class="summary-row">
+        <span class="label">Процент покрытия расходов (клиент / перевозчик):</span>
+        <span class="val" id="coverageValue">0%</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Разница (клиент − перевозчик):</span>
+        <span class="val" id="diffValue">0 ₽</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ФАКТЫ (константы)
+    const baseCarrier = 22140656.29;
+    const baseClient  = 12500993.50;
+
+    const baseCarrierValueEl = document.getElementById("baseCarrierValue");
+    const baseClientValueEl  = document.getElementById("baseClientValue");
+
+    const carrierSlider = document.getElementById("carrierSlider");
+    const clientSlider  = document.getElementById("clientSlider");
+
+    const carrierPercentLabel = document.getElementById("carrierPercentLabel");
+    const clientPercentLabel  = document.getElementById("clientPercentLabel");
+
+    const newCarrierValueEl = document.getElementById("newCarrierValue");
+    const newClientValueEl  = document.getElementById("newClientValue");
+    const coverageValueEl   = document.getElementById("coverageValue");
+    const diffValueEl       = document.getElementById("diffValue");
+
+    function fmtMoney(num) {
+      if (!isFinite(num)) return "—";
+      return num.toLocaleString("ru-RU", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }) + " ₽";
+    }
+
+    function fmtPercent(num) {
+      if (!isFinite(num)) return "—";
+      return num.toLocaleString("ru-RU", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+      }) + "%";
+    }
+
+    function recalc() {
+      const carrierPct = parseFloat(carrierSlider.value);
+      const clientPct  = parseFloat(clientSlider.value);
+
+      carrierPercentLabel.textContent = `${carrierPct}%`;
+      clientPercentLabel.textContent  = `${clientPct}%`;
+
+      const newCarrier = baseCarrier * (1 + carrierPct / 100);
+      const newClient  = baseClient  * (1 + clientPct  / 100);
+
+      newCarrierValueEl.textContent = fmtMoney(newCarrier);
+      newClientValueEl.textContent  = fmtMoney(newClient);
+
+      const coverage = newCarrier > 0 ? (newClient / newCarrier) * 100 : NaN;
+      coverageValueEl.textContent = fmtPercent(coverage);
+
+      const diff = newClient - newCarrier;
+      diffValueEl.textContent = fmtMoney(diff);
+      diffValueEl.classList.toggle("positive", diff > 0);
+      diffValueEl.classList.toggle("negative", diff < 0);
+    }
+
+    // Показать факты и посчитать стартовое состояние
+    baseCarrierValueEl.textContent = fmtMoney(baseCarrier);
+    baseClientValueEl.textContent  = fmtMoney(baseClient);
+
+    [carrierSlider, clientSlider].forEach(el => {
+      el.addEventListener("input", recalc);
+    });
+
+    recalc();
+  </script>
+</body>
+</html>
